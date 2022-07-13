@@ -1,0 +1,7 @@
+Installation Instructions
+
+Go to themes/ folder
+
+Double click on *.terminal file. It will open a new Terminal window with selected color theme.
+
+Set the theme as the default one with Shell -> Use Settings as Default
