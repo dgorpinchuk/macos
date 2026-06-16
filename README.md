@@ -8,6 +8,10 @@ defaults write com.google.Keystone.Agent checkInterval 0
 sudo defaults write /Library/Preferences/org.mozilla.firefox EnterprisePoliciesEnabled -bool TRUE
 sudo defaults write /Library/Preferences/org.mozilla.firefox DisableAppUpdate -bool TRUE
 ```
+# Shrink menu bar items
+```console
+defaults -currentHost write -globalDomain NSStatusItemSpacing -int 8
+```
 
 # Sublime text settings
 ```json
