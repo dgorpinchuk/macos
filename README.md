@@ -1,19 +1,24 @@
-# Disable Chrome auto-updates
+## Disable Chrome auto-updates
 ```console
 defaults write com.google.Keystone.Agent checkInterval 0
 ```
 
-# Disable Firefox auto-updates
+## Disable Firefox auto-updates
 ```console
 sudo defaults write /Library/Preferences/org.mozilla.firefox EnterprisePoliciesEnabled -bool TRUE
 sudo defaults write /Library/Preferences/org.mozilla.firefox DisableAppUpdate -bool TRUE
 ```
-# Shrink menu bar items
+## Shrink menu bar items
 ```console
 defaults -currentHost write -globalDomain NSStatusItemSpacing -int 8
 ```
 
-# Sublime text settings
+## Disable Caps Lock keyboard layout switch delay
+```console
+hidutil property --set '{"CapsLockDelayOverride":0}'
+```
+
+## Sublime text settings
 ```json
 {
   "theme": "Adaptive.sublime-theme",
