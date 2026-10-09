@@ -40,3 +40,42 @@ hidutil property --set '{"CapsLockDelayOverride":0}'
   "index_files": true,
 }
 ```
+
+## Brave browser debloat
+
+### ИИ-помощник Leo
+```console
+defaults write com.brave.Browser BraveAIChatEnabled -bool false
+```
+
+### VPN
+```console
+defaults write com.brave.Browser BraveVPNDisabled -bool true
+```
+
+### Rewards и криптокошелёк
+```console
+defaults write com.brave.Browser BraveRewardsDisabled -bool true
+defaults write com.brave.Browser BraveWalletDisabled -bool true
+```
+
+### Новости и видеозвонки
+```console
+defaults write com.brave.Browser BraveNewsDisabled -bool true
+defaults write com.brave.Browser BraveTalkDisabled -bool true
+```
+
+### Дополнительные функции
+```console
+defaults write com.brave.Browser BravePlaylistEnabled -bool false
+defaults write com.brave.Browser BraveSpeedreaderEnabled -bool false
+defaults write com.brave.Browser BraveWaybackMachineEnabled -bool false
+defaults write com.brave.Browser TorDisabled -bool true
+```
+
+### Аналитика и сбор статистики использования
+```console
+defaults write com.brave.Browser BraveP3AEnabled -bool false
+defaults write com.brave.Browser BraveStatsPingEnabled -bool false
+defaults write com.brave.Browser BraveWebDiscoveryEnabled -bool false
+```
