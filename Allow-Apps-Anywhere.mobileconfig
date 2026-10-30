@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>EnableAssessment</key>
+			<false/>
+			<key>PayloadIdentifier</key>
+			<string>local.gatekeeper.anywhere.policy</string>
+			<key>PayloadType</key>
+			<string>com.apple.systempolicy.control</string>
+			<key>PayloadUUID</key>
+			<string>38A44D5A-0D9D-4B6E-A46F-1B965F48C201</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Disables Gatekeeper assessment. No MDM enrollment.</string>
+	<key>PayloadDisplayName</key>
+	<string>Allow Apps from Anywhere</string>
+	<key>PayloadIdentifier</key>
+	<string>local.gatekeeper.anywhere</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>53AC0647-4099-46A6-B15B-9C3AE70BC9B2</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
