@@ -13,6 +13,11 @@ sudo defaults write /Library/Preferences/org.mozilla.firefox DisableAppUpdate -b
 defaults -currentHost write -globalDomain NSStatusItemSpacing -int 8
 ```
 
+## Disable private wifi address system wide
+```console
+sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist PrivateMACAddressModeSystemSetting -int 1
+```
+
 ## Dock delay and animation
 ```console
 defaults write com.apple.dock autohide -bool true && defaults write com.apple.dock autohide-delay -float 0 && defaults write com.apple.dock autohide-time-modifier -float 0 && killall Dock
