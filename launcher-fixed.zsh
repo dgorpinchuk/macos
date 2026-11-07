@@ -1,19 +1,55 @@
 # ============================================================
-# Quick Menu 2.7
+# Quick Menu 2.8.1
 # macOS · zsh · fzf
 # ============================================================
 
 # Configuration
 typeset -g _LAUNCHER_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/quick-menu"
 typeset -g _LAUNCHER_BREW_CACHE="$_LAUNCHER_CACHE_DIR/brew-outdated.txt"
+typeset -g _LAUNCHER_LOG="$_LAUNCHER_CACHE_DIR/events.log"
 typeset -g _LAUNCHER_VPN_UDP="$HOME/ya_vpn/udpstart.sh"
 typeset -g _LAUNCHER_VPN_TCP="$HOME/ya_vpn/tcpstart.sh"
+
+# ============================================================
+# Safety helpers
+# ============================================================
+
+# Log only action names and lifecycle events; never log typed values,
+# passwords, clipboard data or command output.
+_launcher_log() {
+  [[ -d "$_LAUNCHER_CACHE_DIR" ]] || mkdir -p -- "$_LAUNCHER_CACHE_DIR" 2>/dev/null || return 0
+  # Limit log growth without external background workers.
+  if [[ -f "$_LAUNCHER_LOG" ]]; then
+    local bytes
+    bytes=$(stat -f %z "$_LAUNCHER_LOG" 2>/dev/null)
+    if [[ "$bytes" == <-> ]] && (( bytes > 262144 )); then
+      mv -f -- "$_LAUNCHER_LOG" "${_LAUNCHER_LOG}.old" 2>/dev/null
+    fi
+  fi
+  print -r -- "$(date '+%Y-%m-%d %H:%M:%S') pid=$$ $*" >> "$_LAUNCHER_LOG" 2>/dev/null
+  return 0
+}
+
+# stderr remains attached to the terminal inside pipelines and $(...).
+# stdin/stdout are intentionally redirected when piping choices into fzf.
+_launcher_tty_ok() {
+  [[ -t 2 ]]
+}
+
+# Timeout used ONLY for short status checks, not interactive tools.
+# macOS includes Perl; alarm survives exec, so it also bounds a hung CLI.
+_launcher_status_with_timeout() {
+  local seconds="$1"
+  shift
+  /usr/bin/perl -e 'my $s = shift @ARGV; alarm($s); exec @ARGV or exit 127;' "$seconds" "$@"
+}
 
 # ============================================================
 # UI helpers
 # ============================================================
 
 _launcher_select() {
+  _launcher_tty_ok || return 130
   # fzf reads choices from a pipe, and communicates with the terminal itself.
   fzf \
     --height=80% \
@@ -56,11 +92,11 @@ _launcher_format_items() {
 
 _launcher_git_status() {
   local root branch
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  root=$(_launcher_status_with_timeout 3 git rev-parse --show-toplevel 2>/dev/null) || {
     print -r -- "не в репозитории"
     return
   }
-  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
+  branch=$(_launcher_status_with_timeout 3 git symbolic-ref --quiet --short HEAD 2>/dev/null)
   [[ -n "$branch" ]] || branch="detached HEAD"
   print -r -- "${root:t} · $branch"
 }
@@ -72,7 +108,7 @@ _launcher_ollama_status() {
   fi
 
   local output
-  output=$(ollama ps 2>/dev/null) || {
+  output=$(_launcher_status_with_timeout 4 ollama ps 2>/dev/null) || {
     print -r -- "сервис недоступен"
     return
   }
@@ -100,16 +136,22 @@ _launcher_brew_status() {
     return
   fi
 
-  mkdir -p -- "$_LAUNCHER_CACHE_DIR"
-  local now mtime count
+  mkdir -p -- "$_LAUNCHER_CACHE_DIR" 2>/dev/null || {
+    print -r -- "кэш недоступен"
+    return
+  }
+  local now mtime count tmp_file
   now=$(date +%s)
   mtime=$(stat -f %m "$_LAUNCHER_BREW_CACHE" 2>/dev/null)
 
   if [[ -z "$mtime" ]] || (( now - mtime >= 21600 )); then
-    if HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --quiet > "${_LAUNCHER_BREW_CACHE}.tmp" 2>/dev/null; then
-      mv -f -- "${_LAUNCHER_BREW_CACHE}.tmp" "$_LAUNCHER_BREW_CACHE"
+    # Unique temporary file: multiple Terminal tabs cannot clobber one another.
+    tmp_file="${_LAUNCHER_BREW_CACHE}.$$.tmp"
+    if HOMEBREW_NO_AUTO_UPDATE=1 _launcher_status_with_timeout 15 brew outdated --quiet > "$tmp_file" 2>/dev/null; then
+      mv -f -- "$tmp_file" "$_LAUNCHER_BREW_CACHE"
     else
-      rm -f -- "${_LAUNCHER_BREW_CACHE}.tmp"
+      _launcher_log "brew status timeout/error"
+      rm -f -- "$tmp_file"
     fi
   fi
 
@@ -147,6 +189,7 @@ _launcher_vpn_start() {
   print -r -- "Yandex VPN · ${protocol:u}"
   print -r -- "Запуск: $script"
   print
+  _launcher_log "vpn ${protocol} start"
   bash "$script"
 }
 
@@ -162,8 +205,8 @@ _launcher_prompt() {
 
   while true; do
     # A detached terminal must cancel instead of retrying input.
-    [[ -t 0 && -t 1 ]] || return 130
-    read -r "value?$label: " || return 130
+    _launcher_tty_ok || { _launcher_log "prompt no tty"; return 130; }
+    read -r "value?$label: " || { _launcher_log "prompt interrupted/eof"; return 130; }
 
     # Reject empty or whitespace-only answers.
     if [[ -z "${value//[[:space:]]/}" ]]; then
@@ -765,8 +808,21 @@ launcher() {
   local selected category git_info ollama_info brew_info
   local -a menu_items
 
-  # Never start the menu without a live terminal (e.g. after a tab closes).
+  # Do not run nested menus in the same shell.
+  [[ "${_LAUNCHER_ACTIVE:-0}" != 1 ]] || return 0
   [[ -t 0 && -t 1 ]] || return 0
+  _launcher_tty_ok || return 0
+
+  # Scoped traps: do not overwrite the user's normal terminal handlers.
+  # HUP/TERM can arrive when Terminal.app/tab closes; never retry fzf/read.
+  emulate -L zsh
+  setopt localtraps
+  local _LAUNCHER_ACTIVE=1
+  trap '_launcher_log "received SIGHUP"; return 129' HUP
+  trap '_launcher_log "received SIGTERM"; return 143' TERM
+  # The shell receives SIGINT for interactive commands itself. We deliberately
+  # do not catch it globally: Ctrl+C must still stop ping/ollama normally.
+  _launcher_log "launcher start"
 
   if ! command -v fzf >/dev/null 2>&1; then
     print -r -- "Не найден fzf. Установи: brew install fzf"
@@ -774,7 +830,7 @@ launcher() {
   fi
 
   # If Terminal.app closes or stdin/stdout loses its TTY, stop immediately.
-  while [[ -t 0 && -t 1 ]]; do
+  while _launcher_tty_ok; do
     git_info=$(_launcher_git_status)
     ollama_info=$(_launcher_ollama_status)
     brew_info=$(_launcher_brew_status)
@@ -799,14 +855,16 @@ launcher() {
 
     # Do not hand fzf a new menu if the terminal disappeared while
     # collecting dynamic statuses. Empty/failed selections leave cleanly.
-    [[ -t 0 && -t 1 ]] || return 0
+    _launcher_tty_ok || { _launcher_log "tty lost during statuses"; break; }
     selected=$(
       _launcher_format_items "${menu_items[@]}" |
         _launcher_select "Quick Menu"
-    ) || return 0
-    [[ -n "$selected" && -t 0 && -t 1 ]] || return 0
+    ) || { _launcher_log "fzf cancelled/closed"; break; }
+    [[ -n "$selected" ]] || break
+    _launcher_tty_ok || { _launcher_log "tty lost after fzf"; break; }
 
     category="${selected%%|*}"
+    _launcher_log "selected $category"
     case "$category" in
       chatgpt) open -a "ChatGPT"; return ;;
       network) _launcher_network; return ;;
@@ -816,4 +874,6 @@ launcher() {
       *) _launcher_action "$category"; return ;;
     esac
   done
+  _launcher_log "launcher exit"
+  return 0
 }
