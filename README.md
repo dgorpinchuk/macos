@@ -90,3 +90,10 @@ defaults write com.brave.Browser BraveP3AEnabled -bool false
 defaults write com.brave.Browser BraveStatsPingEnabled -bool false
 defaults write com.brave.Browser BraveWebDiscoveryEnabled -bool false
 ```
+
+### Переименование компьютера
+| Тип имени | За что отвечает | Команда для изменения |
+|---|---|---|
+| `ComputerName` | Понятное имя, видимое в Finder и интерфейсе. | `sudo scutil --set ComputerName "Новое Имя"` |
+| `LocalHostName` | Имя для локальной сети (Bonjour, AirDrop). | `sudo scutil --set LocalHostName "Новое-Имя"` |
+| `HostName` | Имя хоста для DNS и командной строки. | `sudo scutil --set HostName "Новое-Имя"` |
